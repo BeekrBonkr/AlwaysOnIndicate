@@ -75,6 +75,34 @@ async function run() {
         shot(`prefs-${page.title.toLowerCase().replace(/[^a-z]+/g, '-')}`);
     }
 
+    // General page: open the icon picker and search it
+    const generalPage = pages.find(p => p.title === 'General');
+    dialog.set_visible_page(generalPage);
+    await sleep(300);
+    const browse = find(generalPage, w => w instanceof Gtk.Button &&
+        w.tooltip_text === 'Browse the icons installed on this system');
+    print(`icon browse button: ${!!browse}`);
+    browse?.emit('clicked');
+    await sleep(1200);
+    shot('prefs-icon-picker');
+    const iconDialog = find(dialog, w => w instanceof Adw.Dialog);
+    const iconSearch = iconDialog ? find(iconDialog, w => w instanceof Gtk.SearchEntry) : null;
+    const iconGrid = iconDialog ? find(iconDialog, w => w instanceof Gtk.GridView) : null;
+    print(`icon picker: dialog ${!!iconDialog}, search ${!!iconSearch}, grid items ${iconGrid?.model.get_n_items() ?? '-'}`);
+    if (iconSearch) {
+        iconSearch.text = 'pin';
+        await sleep(600);
+        print(`after search "pin": ${iconGrid?.model.get_n_items()} items`);
+        shot('prefs-icon-picker-search');
+        iconSearch.emit('activate');
+        await sleep(400);
+        print(`icon-above now: ${dialog._settings?.get_string('icon-above')}`);
+        dialog._settings?.reset('icon-above');
+    }
+    if (iconDialog?.get_mapped?.())
+        iconDialog.close();
+    await sleep(300);
+
     // Shortcuts page: open the capture dialog on the first extension shortcut row
     const shortcutsPage = pages.find(p => p.title === 'Shortcuts');
     dialog.set_visible_page(shortcutsPage);

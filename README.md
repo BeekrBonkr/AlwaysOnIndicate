@@ -28,6 +28,9 @@ a badge menu, per-app rules and a D-Bus interface for scripting.
   scrolling cycles through pinned windows.
 - **Dash and dock badges** on the app icons in the overview dash and in
   Dash to Dock, as a state icon, a dot or a count.
+- **State colors and icons** shared by all of the above. Icons are picked
+  from a searchable grid of every symbolic icon installed on the system, or
+  typed in by name; unknown names are flagged in the preferences.
 - **Shortcuts**
   - GNOME's built-in window shortcuts (`toggle-above`,
     `toggle-on-all-workspaces`, `always-on-top`) are shown and editable in

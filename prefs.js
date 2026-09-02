@@ -5,6 +5,7 @@ import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
+import Pango from 'gi://Pango';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -148,19 +149,194 @@ function colorRow(settings, key, title, subtitle, withAlpha = true) {
     return row;
 }
 
+let _iconTheme = null;
+let _symbolicIconNames = null;
+
+function iconTheme() {
+    if (!_iconTheme)
+        _iconTheme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default());
+    return _iconTheme;
+}
+
+// Every "-symbolic" icon the current icon theme (and its fallbacks) can
+// resolve. Collected once; the list is a few thousand names.
+function symbolicIconNames() {
+    if (!_symbolicIconNames) {
+        _symbolicIconNames = iconTheme().get_icon_names()
+            .filter(name => name.endsWith('-symbolic'))
+            .sort((a, b) => a.localeCompare(b));
+    }
+    return _symbolicIconNames;
+}
+
+// A text field for an icon name with a live preview, a warning when the
+// name is unknown to the icon theme, a reset and a button that opens a
+// searchable grid of the installed symbolic icons.
 function iconRow(settings, key, title, subtitle) {
     const row = new Adw.EntryRow({title});
     settings.bind(key, row, 'text', Gio.SettingsBindFlags.DEFAULT);
     const icon = new Gtk.Image({valign: Gtk.Align.CENTER, pixel_size: 20});
+    const reset = new Gtk.Button({
+        icon_name: 'edit-undo-symbolic',
+        valign: Gtk.Align.CENTER,
+        css_classes: ['flat'],
+        tooltip_text: `Reset to the default (${settings.get_default_value(key).unpack()})`,
+    });
+    reset.connect('clicked', () => settings.reset(key));
     const update = () => {
-        icon.icon_name = settings.get_string(key);
+        const name = settings.get_string(key);
+        const known = name !== '' && iconTheme().has_icon(name);
+        icon.icon_name = known ? name : 'image-missing-symbolic';
+        icon.css_classes = known ? [] : ['error'];
+        icon.tooltip_text = known
+            ? name
+            : name === '' ? 'No icon set' : `"${name}" is not in the icon theme`;
+        reset.visible = settings.get_user_value(key) !== null;
     };
     settings.connect(`changed::${key}`, update);
     update();
     row.add_prefix(icon);
+    const browse = new Gtk.Button({
+        icon_name: 'view-grid-symbolic',
+        valign: Gtk.Align.CENTER,
+        css_classes: ['flat'],
+        tooltip_text: 'Browse the icons installed on this system',
+    });
+    browse.connect('clicked', () => showIconPicker(row, settings, key, title));
+    row.add_suffix(reset);
+    row.add_suffix(browse);
     if (subtitle)
         row.tooltip_text = subtitle;
     return row;
+}
+
+function showIconPicker(parent, settings, key, title) {
+    const dialog = new Adw.Dialog({
+        title,
+        content_width: 640,
+        content_height: 620,
+    });
+    const toolbar = new Adw.ToolbarView();
+    toolbar.add_top_bar(new Adw.HeaderBar());
+    dialog.set_child(toolbar);
+
+    const search = new Gtk.SearchEntry({
+        placeholder_text: 'Search icon names',
+        hexpand: true,
+        margin_start: 12, margin_end: 12, margin_top: 6, margin_bottom: 6,
+    });
+    toolbar.add_top_bar(search);
+
+    const model = Gtk.StringList.new(symbolicIconNames());
+    const filter = new Gtk.StringFilter({
+        expression: Gtk.PropertyExpression.new(Gtk.StringObject.$gtype, null, 'string'),
+        match_mode: Gtk.StringFilterMatchMode.SUBSTRING,
+        ignore_case: true,
+    });
+    const filtered = new Gtk.FilterListModel({model, filter});
+    const selection = new Gtk.SingleSelection({model: filtered, autoselect: false, can_unselect: true});
+
+    const factory = new Gtk.SignalListItemFactory();
+    factory.connect('setup', (_factory, item) => {
+        const box = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 6,
+            width_request: 108,
+            margin_top: 8, margin_bottom: 8, margin_start: 4, margin_end: 4,
+        });
+        box.append(new Gtk.Image({pixel_size: 28}));
+        box.append(new Gtk.Label({
+            wrap: true,
+            wrap_mode: Pango.WrapMode.WORD_CHAR,
+            lines: 2,
+            ellipsize: Pango.EllipsizeMode.END,
+            max_width_chars: 13,
+            justify: Gtk.Justification.CENTER,
+            css_classes: ['caption'],
+        }));
+        item.child = box;
+    });
+    factory.connect('bind', (_factory, item) => {
+        const name = item.item.string;
+        const box = item.child;
+        box.get_first_child().icon_name = name;
+        box.get_last_child().label = name.replace(/-symbolic$/, '');
+        box.tooltip_text = name;
+    });
+
+    const grid = new Gtk.GridView({
+        model: selection,
+        factory,
+        min_columns: 3,
+        max_columns: 6,
+        single_click_activate: true,
+        margin_start: 6, margin_end: 6,
+    });
+    const choose = name => {
+        settings.set_string(key, name);
+        dialog.close();
+    };
+    grid.connect('activate', (_grid, position) => choose(filtered.get_item(position).string));
+
+    const empty = new Adw.StatusPage({
+        title: 'No matching icons',
+        description: 'Any icon name can still be typed into the field.',
+        icon_name: 'edit-find-symbolic',
+    });
+    const stack = new Gtk.Stack({vexpand: true});
+    stack.add_named(new Gtk.ScrolledWindow({child: grid}), 'grid');
+    stack.add_named(empty, 'empty');
+    toolbar.set_content(stack);
+
+    const count = new Gtk.Label({css_classes: ['dim-label', 'caption'], xalign: 0, hexpand: true});
+    const refreshCount = () => {
+        const n = filtered.get_n_items();
+        count.label = `${n} of ${model.get_n_items()} symbolic icons`;
+        stack.visible_child_name = n === 0 ? 'empty' : 'grid';
+    };
+    filtered.connect('items-changed', refreshCount);
+    refreshCount();
+    search.connect('search-changed', () => {
+        filter.search = search.text;
+    });
+    search.connect('activate', () => {
+        if (filtered.get_n_items() > 0)
+            choose(filtered.get_item(0).string);
+    });
+
+    const defaultName = settings.get_default_value(key).unpack();
+    const useDefault = new Gtk.Button({
+        label: `Use Default (${defaultName.replace(/-symbolic$/, '')})`,
+        valign: Gtk.Align.CENTER,
+    });
+    useDefault.connect('clicked', () => choose(defaultName));
+    const library = new Gtk.LinkButton({
+        label: 'More icons',
+        uri: 'https://flathub.org/apps/org.gnome.design.IconLibrary',
+        tooltip_text: 'The Icon Library app has the full GNOME symbolic icon set with names ' +
+            'to copy; icons it shows that are not installed here can be typed into the field.',
+        valign: Gtk.Align.CENTER,
+    });
+    const footer = new Gtk.Box({
+        spacing: 6,
+        margin_start: 12, margin_end: 12, margin_top: 6, margin_bottom: 6,
+    });
+    footer.append(count);
+    footer.append(library);
+    footer.append(useDefault);
+    toolbar.add_bottom_bar(footer);
+
+    dialog.present(parent);
+    search.grab_focus();
+
+    // Start at the icon in use so it is visible and selected
+    const current = symbolicIconNames().indexOf(settings.get_string(key));
+    if (current >= 0) {
+        GLib.idle_add(GLib.PRIORITY_LOW, () => {
+            grid.scroll_to(current, Gtk.ListScrollFlags.SELECT, null);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
 }
 
 function group(page, title, description) {
@@ -222,7 +398,8 @@ export default class AlwaysOnIndicatePreferences extends ExtensionPreferences {
 
         const colors = group(page, 'State Colors and Icons',
             'Shared by every indicator unless it uses its own colors. Icons are ' +
-            'symbolic icon names from the icon theme.');
+            'symbolic icon names from the icon theme: use the grid button to browse ' +
+            'the icons installed on this system, or type any icon name.');
         colors.add(colorRow(settings, 'color-above', 'Always on top'));
         colors.add(colorRow(settings, 'color-sticky', 'Always on visible workspace'));
         colors.add(colorRow(settings, 'color-both', 'Both'));
