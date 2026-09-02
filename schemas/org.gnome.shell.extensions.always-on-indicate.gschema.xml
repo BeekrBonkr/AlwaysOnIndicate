@@ -1,0 +1,690 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.always-on-indicate"
+          path="/org/gnome/shell/extensions/always-on-indicate/">
+
+    <!-- ==================== States ==================== -->
+    <key name="indicate-above" type="b">
+      <default>true</default>
+      <summary>Indicate windows that are always on top</summary>
+    </key>
+    <key name="indicate-sticky" type="b">
+      <default>true</default>
+      <summary>Indicate windows that are always on the visible workspace</summary>
+    </key>
+    <key name="color-above" type="s">
+      <default>'#3584e4'</default>
+      <summary>Color for the "always on top" state</summary>
+      <description>Used by every indicator that follows the state colors.</description>
+    </key>
+    <key name="color-sticky" type="s">
+      <default>'#2ec27e'</default>
+      <summary>Color for the "always on visible workspace" state</summary>
+    </key>
+    <key name="color-both" type="s">
+      <default>'#e5a50a'</default>
+      <summary>Color for windows that are both on top and on all workspaces</summary>
+    </key>
+    <key name="icon-above" type="s">
+      <default>'go-top-symbolic'</default>
+      <summary>Icon name for the "always on top" state</summary>
+    </key>
+    <key name="icon-sticky" type="s">
+      <default>'view-paged-symbolic'</default>
+      <summary>Icon name for the "always on visible workspace" state</summary>
+    </key>
+    <key name="icon-both" type="s">
+      <default>'view-pin-symbolic'</default>
+      <summary>Icon name for windows in both states</summary>
+    </key>
+
+    <!-- ==================== Visibility ==================== -->
+    <key name="indicator-visibility" type="s">
+      <choices>
+        <choice value="always"/>
+        <choice value="focused"/>
+        <choice value="unfocused"/>
+        <choice value="hover"/>
+        <choice value="hover-or-focused"/>
+      </choices>
+      <default>'always'</default>
+      <summary>When window indicators (outline and badge) are shown</summary>
+      <description>"always" shows them on every pinned window; "focused" only on the focused window; "unfocused" only on windows without focus; "hover" while the pointer is over the window; "hover-or-focused" when either applies.</description>
+    </key>
+    <key name="hide-in-overview" type="b">
+      <default>true</default>
+      <summary>Hide window indicators while the overview is open</summary>
+    </key>
+    <key name="hide-when-fullscreen" type="b">
+      <default>true</default>
+      <summary>Hide window indicators on fullscreen windows</summary>
+    </key>
+    <key name="hide-when-maximized" type="b">
+      <default>false</default>
+      <summary>Hide window indicators on maximized windows</summary>
+    </key>
+    <key name="overlay-layer" type="s">
+      <choices>
+        <choice value="window"/>
+        <choice value="stage"/>
+      </choices>
+      <default>'window'</default>
+      <summary>Where window indicators are drawn</summary>
+      <description>"window" attaches the indicator to the window itself, so it follows the window through minimize, workspace-switch and overview animations and inherits the window's opacity. "stage" draws it as a separate layer directly above the window; it stays crisp regardless of window effects and never appears in overview previews.</description>
+    </key>
+
+    <!-- ==================== Outline ==================== -->
+    <key name="outline-enabled" type="b">
+      <default>true</default>
+      <summary>Draw an outline around pinned windows</summary>
+    </key>
+    <key name="outline-width" type="i">
+      <range min="1" max="32"/>
+      <default>2</default>
+      <summary>Outline width in pixels</summary>
+    </key>
+    <key name="outline-position" type="s">
+      <choices>
+        <choice value="inside"/>
+        <choice value="outside"/>
+        <choice value="centered"/>
+      </choices>
+      <default>'inside'</default>
+      <summary>Where the outline sits relative to the window edge</summary>
+      <description>"inside" keeps the outline within the window frame (works with every decoration and in overview previews), "outside" draws it around the frame, "centered" straddles the edge.</description>
+    </key>
+    <key name="outline-inset" type="i">
+      <range min="-32" max="64"/>
+      <default>0</default>
+      <summary>Extra distance between window edge and outline in pixels</summary>
+      <description>Added on top of the per-decoration inset. Negative values push the outline outward.</description>
+    </key>
+    <key name="outline-color-source" type="s">
+      <choices>
+        <choice value="state"/>
+        <choice value="custom"/>
+      </choices>
+      <default>'state'</default>
+      <summary>Whether the outline uses the state colors or its own</summary>
+    </key>
+    <key name="outline-color-above" type="s">
+      <default>'#3584e4'</default>
+      <summary>Custom outline color for always-on-top windows</summary>
+    </key>
+    <key name="outline-color-sticky" type="s">
+      <default>'#2ec27e'</default>
+      <summary>Custom outline color for always-on-visible-workspace windows</summary>
+    </key>
+    <key name="outline-color-both" type="s">
+      <default>'#e5a50a'</default>
+      <summary>Custom outline color for windows in both states</summary>
+    </key>
+    <key name="outline-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>100</default>
+      <summary>Outline opacity in percent</summary>
+    </key>
+    <key name="outline-unfocused-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>100</default>
+      <summary>Outline opacity in percent while the window is not focused</summary>
+    </key>
+    <key name="outline-radius-mode" type="s">
+      <choices>
+        <choice value="auto"/>
+        <choice value="custom"/>
+        <choice value="none"/>
+      </choices>
+      <default>'auto'</default>
+      <summary>How the outline's corner radius is chosen</summary>
+      <description>"auto" derives it from the window's decoration profile and app rules, "custom" uses outline-radius everywhere, "none" draws square corners.</description>
+    </key>
+    <key name="outline-radius" type="i">
+      <range min="0" max="64"/>
+      <default>12</default>
+      <summary>Corner radius in pixels when outline-radius-mode is "custom"</summary>
+    </key>
+    <key name="outline-glow" type="b">
+      <default>false</default>
+      <summary>Add a soft glow around the outline</summary>
+    </key>
+    <key name="outline-glow-size" type="i">
+      <range min="1" max="64"/>
+      <default>10</default>
+      <summary>Glow spread in pixels</summary>
+    </key>
+    <key name="outline-glow-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>60</default>
+      <summary>Glow opacity in percent</summary>
+    </key>
+    <key name="outline-edge-top" type="b">
+      <default>true</default>
+      <summary>Draw the top edge of the outline</summary>
+    </key>
+    <key name="outline-edge-bottom" type="b">
+      <default>true</default>
+      <summary>Draw the bottom edge of the outline</summary>
+    </key>
+    <key name="outline-edge-left" type="b">
+      <default>true</default>
+      <summary>Draw the left edge of the outline</summary>
+    </key>
+    <key name="outline-edge-right" type="b">
+      <default>true</default>
+      <summary>Draw the right edge of the outline</summary>
+    </key>
+    <key name="outline-fill" type="b">
+      <default>false</default>
+      <summary>Tint the whole window with the outline color</summary>
+    </key>
+    <key name="outline-fill-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>8</default>
+      <summary>Tint opacity in percent</summary>
+    </key>
+
+    <!-- ==================== Corner badge ==================== -->
+    <key name="badge-enabled" type="b">
+      <default>true</default>
+      <summary>Show a badge in a corner of pinned windows</summary>
+    </key>
+    <key name="badge-style" type="s">
+      <choices>
+        <choice value="dot"/>
+        <choice value="icon"/>
+        <choice value="pill"/>
+        <choice value="label"/>
+      </choices>
+      <default>'icon'</default>
+      <summary>Badge appearance</summary>
+      <description>"dot" is a plain colored dot, "icon" a state icon on a colored disc, "pill" an icon with a text label, "label" text only.</description>
+    </key>
+    <key name="badge-shape" type="s">
+      <choices>
+        <choice value="circle"/>
+        <choice value="rounded"/>
+        <choice value="square"/>
+      </choices>
+      <default>'circle'</default>
+      <summary>Shape of the badge background</summary>
+    </key>
+    <key name="badge-size" type="i">
+      <range min="4" max="96"/>
+      <default>18</default>
+      <summary>Badge size in pixels</summary>
+    </key>
+    <key name="badge-corner" type="s">
+      <choices>
+        <choice value="top-left"/>
+        <choice value="top-center"/>
+        <choice value="top-right"/>
+        <choice value="bottom-left"/>
+        <choice value="bottom-center"/>
+        <choice value="bottom-right"/>
+        <choice value="left-center"/>
+        <choice value="right-center"/>
+      </choices>
+      <default>'top-right'</default>
+      <summary>Where the badge is anchored</summary>
+    </key>
+    <key name="badge-offset-x" type="i">
+      <range min="-256" max="1024"/>
+      <default>8</default>
+      <summary>Horizontal distance from the anchor edge in pixels (negative moves outside)</summary>
+    </key>
+    <key name="badge-offset-y" type="i">
+      <range min="-256" max="1024"/>
+      <default>8</default>
+      <summary>Vertical distance from the anchor edge in pixels (negative moves outside)</summary>
+    </key>
+    <key name="badge-color-source" type="s">
+      <choices>
+        <choice value="state"/>
+        <choice value="custom"/>
+      </choices>
+      <default>'state'</default>
+      <summary>Whether the badge uses the state colors or its own</summary>
+    </key>
+    <key name="badge-color-above" type="s">
+      <default>'#3584e4'</default>
+      <summary>Custom badge color for always-on-top windows</summary>
+    </key>
+    <key name="badge-color-sticky" type="s">
+      <default>'#2ec27e'</default>
+      <summary>Custom badge color for always-on-visible-workspace windows</summary>
+    </key>
+    <key name="badge-color-both" type="s">
+      <default>'#e5a50a'</default>
+      <summary>Custom badge color for windows in both states</summary>
+    </key>
+    <key name="badge-foreground-color" type="s">
+      <default>'#ffffff'</default>
+      <summary>Color of the badge icon and text</summary>
+    </key>
+    <key name="badge-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>100</default>
+      <summary>Badge opacity in percent</summary>
+    </key>
+    <key name="badge-unfocused-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>100</default>
+      <summary>Badge opacity in percent while the window is not focused</summary>
+    </key>
+    <key name="badge-border-width" type="i">
+      <range min="0" max="8"/>
+      <default>0</default>
+      <summary>Badge border width in pixels</summary>
+    </key>
+    <key name="badge-border-color" type="s">
+      <default>'#ffffff'</default>
+      <summary>Badge border color</summary>
+    </key>
+    <key name="badge-shadow" type="b">
+      <default>true</default>
+      <summary>Drop shadow behind the badge</summary>
+    </key>
+    <key name="badge-label-above" type="s">
+      <default>'Top'</default>
+      <summary>Badge label for always-on-top windows</summary>
+    </key>
+    <key name="badge-label-sticky" type="s">
+      <default>'All'</default>
+      <summary>Badge label for always-on-visible-workspace windows</summary>
+    </key>
+    <key name="badge-label-both" type="s">
+      <default>'Top+All'</default>
+      <summary>Badge label for windows in both states</summary>
+    </key>
+    <key name="badge-click-action" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="unpin"/>
+        <choice value="toggle-above"/>
+        <choice value="toggle-sticky"/>
+        <choice value="menu"/>
+      </choices>
+      <default>'menu'</default>
+      <summary>What clicking the badge does</summary>
+      <description>"menu" opens a small popup with both toggles, "unpin" clears both states, the toggle actions flip one state, "none" makes the badge click-through.</description>
+    </key>
+    <key name="badge-hover-grow" type="b">
+      <default>true</default>
+      <summary>Enlarge the badge slightly while hovered</summary>
+    </key>
+
+    <!-- ==================== Top bar indicator ==================== -->
+    <key name="panel-enabled" type="b">
+      <default>true</default>
+      <summary>Show an indicator in the top bar</summary>
+    </key>
+    <key name="panel-box" type="s">
+      <choices>
+        <choice value="left"/>
+        <choice value="center"/>
+        <choice value="right"/>
+      </choices>
+      <default>'right'</default>
+      <summary>Top bar area for the indicator</summary>
+    </key>
+    <key name="panel-order" type="i">
+      <range min="-1" max="32"/>
+      <default>0</default>
+      <summary>Position within the top bar area (0 = first, -1 = last)</summary>
+    </key>
+    <key name="panel-icon" type="s">
+      <default>'view-pin-symbolic'</default>
+      <summary>Icon of the top bar indicator</summary>
+    </key>
+    <key name="panel-show-count" type="b">
+      <default>true</default>
+      <summary>Show the number of pinned windows next to the icon</summary>
+    </key>
+    <key name="panel-hide-when-empty" type="b">
+      <default>true</default>
+      <summary>Hide the indicator when no window is pinned</summary>
+    </key>
+    <key name="panel-color-by-state" type="b">
+      <default>true</default>
+      <summary>Color the icon by the focused window's state</summary>
+      <description>The icon takes the state color while the focused window is pinned, so the top bar tells you at a glance whether the current window is on top or sticky.</description>
+    </key>
+    <key name="panel-middle-click-action" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="toggle-above"/>
+        <choice value="toggle-sticky"/>
+        <choice value="toggle-both"/>
+        <choice value="unpin-all"/>
+      </choices>
+      <default>'toggle-above'</default>
+      <summary>What middle-clicking the indicator does to the focused window</summary>
+    </key>
+    <key name="panel-scroll-action" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="cycle"/>
+      </choices>
+      <default>'cycle'</default>
+      <summary>Scrolling on the indicator cycles through pinned windows</summary>
+    </key>
+    <key name="panel-menu-show-app-icons" type="b">
+      <default>true</default>
+      <summary>Show app icons in the indicator menu</summary>
+    </key>
+    <key name="panel-menu-show-workspace" type="b">
+      <default>true</default>
+      <summary>Show the workspace number of each window in the menu</summary>
+    </key>
+    <key name="panel-menu-group-by-state" type="b">
+      <default>true</default>
+      <summary>Group the menu into "always on top" and "on all workspaces" sections</summary>
+    </key>
+    <key name="panel-menu-show-focused" type="b">
+      <default>true</default>
+      <summary>Show toggles for the focused window at the top of the menu</summary>
+    </key>
+
+    <!-- ==================== Dock badge ==================== -->
+    <key name="dock-enabled" type="b">
+      <default>true</default>
+      <summary>Show a badge on dash and dock app icons</summary>
+    </key>
+    <key name="dock-badge-style" type="s">
+      <choices>
+        <choice value="dot"/>
+        <choice value="icon"/>
+      </choices>
+      <default>'icon'</default>
+      <summary>Dock badge appearance</summary>
+    </key>
+    <key name="dock-badge-corner" type="s">
+      <choices>
+        <choice value="top-left"/>
+        <choice value="top-right"/>
+        <choice value="bottom-left"/>
+        <choice value="bottom-right"/>
+      </choices>
+      <default>'top-right'</default>
+      <summary>Corner of the app icon that holds the badge</summary>
+    </key>
+    <key name="dock-badge-size" type="i">
+      <range min="4" max="48"/>
+      <default>14</default>
+      <summary>Dock badge size in pixels</summary>
+    </key>
+    <key name="dock-badge-color-source" type="s">
+      <choices>
+        <choice value="state"/>
+        <choice value="custom"/>
+      </choices>
+      <default>'state'</default>
+      <summary>Whether the dock badge uses the state colors or its own</summary>
+    </key>
+    <key name="dock-badge-color" type="s">
+      <default>'#3584e4'</default>
+      <summary>Custom dock badge color</summary>
+    </key>
+    <key name="dock-badge-foreground-color" type="s">
+      <default>'#ffffff'</default>
+      <summary>Dock badge icon color</summary>
+    </key>
+    <key name="dock-badge-show-count" type="b">
+      <default>false</default>
+      <summary>Show the number of pinned windows of the app in the badge instead of an icon</summary>
+    </key>
+
+    <!-- ==================== Extension shortcuts ==================== -->
+    <key name="kb-toggle-above" type="as">
+      <default>[]</default>
+      <summary>Toggle always on top for the focused window</summary>
+    </key>
+    <key name="kb-toggle-sticky" type="as">
+      <default>[]</default>
+      <summary>Toggle always on visible workspace for the focused window</summary>
+    </key>
+    <key name="kb-toggle-both" type="as">
+      <default>[]</default>
+      <summary>Pin (both states) or unpin the focused window</summary>
+    </key>
+    <key name="kb-unpin-all" type="as">
+      <default>[]</default>
+      <summary>Clear both states on every window</summary>
+    </key>
+    <key name="kb-cycle-pinned" type="as">
+      <default>[]</default>
+      <summary>Activate the next pinned window</summary>
+    </key>
+    <key name="kb-open-menu" type="as">
+      <default>[]</default>
+      <summary>Open the top bar indicator menu</summary>
+    </key>
+    <key name="kb-toggle-indicators" type="as">
+      <default>[]</default>
+      <summary>Temporarily hide or show all window indicators</summary>
+    </key>
+
+    <!-- ==================== Feedback ==================== -->
+    <key name="state-change-feedback" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="osd"/>
+        <choice value="notification"/>
+      </choices>
+      <default>'osd'</default>
+      <summary>Feedback when a window's state changes</summary>
+    </key>
+    <key name="feedback-only-for-shortcuts" type="b">
+      <default>false</default>
+      <summary>Only give feedback for changes made through this extension's shortcuts and menus</summary>
+    </key>
+    <key name="flash-on-change" type="b">
+      <default>true</default>
+      <summary>Pulse the window indicators when the state changes</summary>
+    </key>
+    <key name="flash-duration" type="i">
+      <range min="50" max="3000"/>
+      <default>500</default>
+      <summary>Pulse duration in milliseconds</summary>
+    </key>
+    <key name="animation-duration" type="i">
+      <range min="0" max="2000"/>
+      <default>200</default>
+      <summary>Fade duration in milliseconds when indicators appear or disappear</summary>
+    </key>
+    <key name="animation-interpolation" type="s">
+      <choices>
+        <choice value="linear"/>
+        <choice value="ease-in-quad"/>
+        <choice value="ease-out-quad"/>
+        <choice value="ease-in-out-quad"/>
+        <choice value="ease-out-cubic"/>
+        <choice value="ease-in-out-cubic"/>
+        <choice value="ease-out-quart"/>
+        <choice value="ease-out-quint"/>
+        <choice value="ease-out-expo"/>
+        <choice value="ease-in-out-sine"/>
+        <choice value="ease-out-circ"/>
+        <choice value="ease-out-back"/>
+        <choice value="ease-out-elastic"/>
+        <choice value="ease-out-bounce"/>
+      </choices>
+      <default>'ease-out-quad'</default>
+      <summary>Easing curve for indicator animations</summary>
+    </key>
+
+    <!-- ==================== Window behavior ==================== -->
+    <key name="above-unfocused-opacity" type="i">
+      <range min="10" max="100"/>
+      <default>100</default>
+      <summary>Opacity in percent of always-on-top windows while they are not focused</summary>
+      <description>100 leaves windows untouched. Lower values let you see what an always-on-top window is covering.</description>
+    </key>
+    <key name="above-focused-opacity" type="i">
+      <range min="10" max="100"/>
+      <default>100</default>
+      <summary>Opacity in percent of always-on-top windows while they are focused</summary>
+    </key>
+    <key name="raise-on-pin" type="b">
+      <default>false</default>
+      <summary>Raise and focus a window when it is made always on top</summary>
+    </key>
+    <key name="restore-states" type="b">
+      <default>false</default>
+      <summary>Remember pinned windows and restore their state after the shell restarts</summary>
+      <description>Matches windows by app and title when the extension starts. Windows created by app rules are handled by the rules instead.</description>
+    </key>
+    <key name="saved-states" type="s">
+      <default>'[]'</default>
+      <summary>Internal: saved window states for restore-states</summary>
+    </key>
+
+    <!-- ==================== Decoration profiles ==================== -->
+    <key name="radius-when-maximized" type="i">
+      <range min="0" max="64"/>
+      <default>0</default>
+      <summary>Outline corner radius for maximized or tiled windows</summary>
+    </key>
+    <key name="deco-ssd-radius-top" type="i">
+      <range min="0" max="64"/>
+      <default>12</default>
+      <summary>Top corner radius for windows with server-side (GNOME-drawn) decorations</summary>
+    </key>
+    <key name="deco-ssd-radius-bottom" type="i">
+      <range min="0" max="64"/>
+      <default>0</default>
+      <summary>Bottom corner radius for server-side decorated windows</summary>
+    </key>
+    <key name="deco-ssd-inset" type="i">
+      <range min="-32" max="64"/>
+      <default>0</default>
+      <summary>Outline inset for server-side decorated windows</summary>
+    </key>
+    <key name="deco-ssd-badge-dx" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra horizontal badge offset for server-side decorated windows</summary>
+    </key>
+    <key name="deco-ssd-badge-dy" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra vertical badge offset for server-side decorated windows</summary>
+    </key>
+
+    <key name="deco-csd-radius-top" type="i">
+      <range min="0" max="64"/>
+      <default>12</default>
+      <summary>Top corner radius for client-side decorated windows (GTK4, libadwaita)</summary>
+    </key>
+    <key name="deco-csd-radius-bottom" type="i">
+      <range min="0" max="64"/>
+      <default>12</default>
+      <summary>Bottom corner radius for client-side decorated windows</summary>
+    </key>
+    <key name="deco-csd-inset" type="i">
+      <range min="-32" max="64"/>
+      <default>0</default>
+      <summary>Outline inset for client-side decorated windows</summary>
+    </key>
+    <key name="deco-csd-badge-dx" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra horizontal badge offset for client-side decorated windows</summary>
+    </key>
+    <key name="deco-csd-badge-dy" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra vertical badge offset for client-side decorated windows</summary>
+    </key>
+
+    <key name="deco-x11-ssd-radius-top" type="i">
+      <range min="0" max="64"/>
+      <default>12</default>
+      <summary>Top corner radius for X11 windows with server-side decorations</summary>
+    </key>
+    <key name="deco-x11-ssd-radius-bottom" type="i">
+      <range min="0" max="64"/>
+      <default>0</default>
+      <summary>Bottom corner radius for X11 windows with server-side decorations</summary>
+    </key>
+    <key name="deco-x11-ssd-inset" type="i">
+      <range min="-32" max="64"/>
+      <default>0</default>
+      <summary>Outline inset for X11 windows with server-side decorations</summary>
+    </key>
+    <key name="deco-x11-ssd-badge-dx" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra horizontal badge offset for X11 server-side decorated windows</summary>
+    </key>
+    <key name="deco-x11-ssd-badge-dy" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra vertical badge offset for X11 server-side decorated windows</summary>
+    </key>
+
+    <key name="deco-x11-csd-radius-top" type="i">
+      <range min="0" max="64"/>
+      <default>8</default>
+      <summary>Top corner radius for X11 windows with client-side decorations (GTK3, Electron, Chromium)</summary>
+    </key>
+    <key name="deco-x11-csd-radius-bottom" type="i">
+      <range min="0" max="64"/>
+      <default>0</default>
+      <summary>Bottom corner radius for X11 client-side decorated windows</summary>
+    </key>
+    <key name="deco-x11-csd-inset" type="i">
+      <range min="-32" max="64"/>
+      <default>0</default>
+      <summary>Outline inset for X11 client-side decorated windows</summary>
+    </key>
+    <key name="deco-x11-csd-badge-dx" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra horizontal badge offset for X11 client-side decorated windows</summary>
+    </key>
+    <key name="deco-x11-csd-badge-dy" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra vertical badge offset for X11 client-side decorated windows</summary>
+    </key>
+
+    <key name="deco-undecorated-radius-top" type="i">
+      <range min="0" max="64"/>
+      <default>0</default>
+      <summary>Top corner radius for undecorated windows (games, borderless players, custom frames)</summary>
+    </key>
+    <key name="deco-undecorated-radius-bottom" type="i">
+      <range min="0" max="64"/>
+      <default>0</default>
+      <summary>Bottom corner radius for undecorated windows</summary>
+    </key>
+    <key name="deco-undecorated-inset" type="i">
+      <range min="-32" max="64"/>
+      <default>0</default>
+      <summary>Outline inset for undecorated windows</summary>
+    </key>
+    <key name="deco-undecorated-badge-dx" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra horizontal badge offset for undecorated windows</summary>
+    </key>
+    <key name="deco-undecorated-badge-dy" type="i">
+      <range min="-256" max="256"/>
+      <default>0</default>
+      <summary>Extra vertical badge offset for undecorated windows</summary>
+    </key>
+
+    <!-- ==================== App rules ==================== -->
+    <key name="app-rules" type="s">
+      <default>'[]'</default>
+      <summary>Per-app rules as a JSON array</summary>
+      <description>Each rule is an object with "match" (text), "field" (one of "wm_class", "app_id", "title"), "mode" ("contains", "exact", "regex"), and optional overrides: "radiusTop", "radiusBottom", "inset", "badgeDx", "badgeDy" (numbers), "hide" (boolean, never indicate), "autoAbove" and "autoSticky" (booleans, apply the state when the window opens), "opacity" (window opacity in percent), "badgeCorner" (a badge-corner value or "" for the default).</description>
+    </key>
+    <key name="rules-apply-to-existing" type="b">
+      <default>true</default>
+      <summary>Apply auto-pin rules to windows that are already open when the extension starts</summary>
+    </key>
+  </schema>
+</schemalist>

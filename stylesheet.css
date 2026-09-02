@@ -1,0 +1,83 @@
+/* Always On Indicate — base styling. Colors, sizes and radii that the user
+ * can configure are applied inline from the settings; this file only holds
+ * the structural bits. */
+
+/* Window overlay: a plain container positioned over the window frame */
+.aoi-overlay {
+}
+
+.aoi-outline {
+  background-color: transparent;
+}
+
+/* Corner badge */
+.aoi-badge {
+  transition-duration: 100ms;
+}
+
+.aoi-badge-box {
+  spacing: 4px;
+}
+
+.aoi-badge-label {
+  font-weight: bold;
+}
+
+/* Top bar indicator */
+.aoi-panel-count {
+  font-size: 0.85em;
+  font-weight: bold;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+/* Menu items */
+.aoi-menu-title {
+  font-weight: bold;
+}
+
+.aoi-menu-section {
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.aoi-window-item {
+  spacing: 8px;
+}
+
+.aoi-window-item-title {
+  min-width: 120px;
+  max-width: 320px;
+}
+
+.aoi-window-item-workspace {
+  font-size: 0.8em;
+  padding: 0 6px;
+  border-radius: 99px;
+  background-color: rgba(128, 128, 128, 0.25);
+}
+
+.aoi-menu-toggle,
+.aoi-menu-unpin {
+  border-radius: 99px;
+  padding: 4px;
+  opacity: 0.55;
+}
+
+.aoi-menu-toggle:hover,
+.aoi-menu-unpin:hover {
+  background-color: rgba(128, 128, 128, 0.25);
+  opacity: 1;
+}
+
+.aoi-menu-toggle:checked {
+  opacity: 1;
+  background-color: rgba(128, 128, 128, 0.35);
+}
+
+/* Dock badge */
+.aoi-dock-badge {
+  margin: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  font-weight: bold;
+}
