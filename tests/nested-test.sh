@@ -3,7 +3,7 @@
 # settings database, opens a few windows, drives it over D-Bus, exercises the
 # preferences window and takes screenshots. Nothing touches the live session.
 #
-# Usage: tests/nested-test.sh <run-id> [basic|stage|pill|opacity]
+# Usage: tests/nested-test.sh <run-id> [basic|stage|pill|opacity|readme|dodge]
 # Output: $TMPDIR/aoi-test/run-<run-id>/ (test.log, shell.log, *.png)
 # Requires: gnome-shell, gjs, python3, gnome-calculator, gedit, xterm.
 # The extension must be installed (make install) first.

@@ -42,6 +42,19 @@ case "$SCENARIO" in
     opacity)
         gsettings set $SCHEMA above-unfocused-opacity 60
         gsettings set $SCHEMA indicator-visibility focused ;;
+    readme)
+        # Showcase settings for README screenshots
+        gsettings set $SCHEMA badge-style pill
+        gsettings set $SCHEMA outline-glow true
+        gsettings set $SCHEMA outline-width 3
+        gsettings set $SCHEMA state-change-feedback none ;;
+    dodge)
+        gsettings set $SCHEMA badge-size 28
+        gsettings set $SCHEMA badge-dodge true
+        gsettings set $SCHEMA badge-hover-fade true
+        gsettings set $SCHEMA badge-click-through true
+        gsettings set $SCHEMA badge-dodge-distance 90
+        gsettings set $SCHEMA state-change-feedback none ;;
 esac
 
 gnome-shell ${SHELL_MODE:---headless} --wayland --virtual-monitor 1600x900 > "$OUT/shell.log" 2>&1 &
@@ -61,7 +74,7 @@ ev "Main.overview.hide(); 1" >/dev/null
 
 gnome-calculator >/dev/null 2>&1 &
 sleep 3
-[ -n "${DISPLAY:-}" ] && xterm -geometry 60x20+700+300 > "$OUT/xterm.log" 2>&1 &
+[ -n "${DISPLAY:-}" ] && xterm -T Terminal -geometry 60x20+700+300 -e bash --norc --noprofile > "$OUT/xterm.log" 2>&1 &
 gedit >/dev/null 2>&1 &
 sleep 5
 shot 01-before
@@ -76,6 +89,46 @@ shot 02-pinned
 echo "--- overlays after pin"; overlays
 echo "--- window actor opacity"; ev "global.get_window_actors().map(a => [a.meta_window.title, a.opacity, a.meta_window.has_focus()])"
 echo "--- panel"; ev "(() => { const b = Main.panel.statusArea['always-on-indicate']; return {visible: b.visible, count: b._count.text, icon: b._icon.icon_name, style: b._icon.get_style()}; })()"
+if [ "$SCENARIO" = dodge ]; then
+    # Move a virtual pointer toward the calculator badge and watch it dodge.
+    # badgeinfo → [stage x, stage y, translation x, translation y, tilt, opacity, reactive]
+    badgeinfo() {
+        ev "(() => { const ext = Main.extensionManager.lookup('$UUID').stateObj; const i = [...ext._overlays._indicators.values()].find(i => (i.window.get_wm_class() ?? '').toLowerCase().includes('calc')); const b = i._badge; const [sx, sy] = i._container.get_transformed_position(); return [Math.round(sx + b.x + b.width / 2), Math.round(sy + b.y + b.height / 2), Math.round(b.translation_x), Math.round(b.translation_y), Math.round(b.rotation_angle_z), b.opacity, b.reactive, ext._overlays.pointerTracking]; })()"
+    }
+    pointer() {
+        ev "(() => { const seat = Clutter.get_default_backend().get_default_seat(); globalThis.__vp ??= seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE); globalThis.__vp.notify_absolute_motion(global.get_current_time() * 1000, $1, $2); return global.get_pointer().slice(0, 2); })()"
+    }
+    echo "--- dodge: rest"; REST=$(badgeinfo); echo "$REST"
+    BX=$(echo "$REST" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0])')
+    BY=$(echo "$REST" | python3 -c 'import sys,json; print(json.load(sys.stdin)[1])')
+    echo "pointer far: $(pointer 100 850)"; sleep 0.5
+    echo "far: $(badgeinfo)"
+    echo "pointer near (40px left of badge): $(pointer $((BX - 40)) $((BY + 10)))"; sleep 0.8
+    shot 10-dodge-near
+    echo "near: $(badgeinfo)"
+    echo "pointer on rest spot: $(pointer $BX $BY)"; sleep 0.8
+    shot 11-dodge-on-rest
+    echo "on rest: $(badgeinfo)"
+    echo "pointer chasing (below): $(pointer $BX $((BY + 60)))"; sleep 0.8
+    shot 12-dodge-chase
+    echo "chase: $(badgeinfo)"
+    echo "pointer far again: $(pointer 100 850)"; sleep 1.2
+    shot 13-dodge-returned
+    echo "returned: $(badgeinfo)"
+    # hover fade: park the pointer on the (returned) badge
+    echo "pointer on badge: $(pointer $BX $BY)"; sleep 0.8
+    echo "faded (dodge pushes it away first, so opacity should be full): $(badgeinfo)"
+    gsettings set $SCHEMA badge-dodge false; sleep 0.5
+    echo "dodge off, pointer still on badge: $(pointer $((BX + 1)) $BY)"; sleep 0.8
+    shot 14-hover-fade
+    echo "faded: $(badgeinfo)"
+    echo "pointer away: $(pointer 100 850)"; sleep 0.8
+    echo "unfaded: $(badgeinfo)"
+    gsettings set $SCHEMA badge-click-through false; sleep 0.3
+    echo "click-through off: $(badgeinfo)"
+    gsettings set $SCHEMA badge-hover-fade false; sleep 0.3
+    echo "tracking off: $(badgeinfo)"
+fi
 call ToggleAbove "$CALC" >/dev/null
 sleep 1
 shot 03-calc-unpinned

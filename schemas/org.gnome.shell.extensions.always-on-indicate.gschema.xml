@@ -3,6 +3,13 @@
   <schema id="org.gnome.shell.extensions.always-on-indicate"
           path="/org/gnome/shell/extensions/always-on-indicate/">
 
+    <!-- ==================== Presets ==================== -->
+    <key name="active-preset" type="s">
+      <default>''</default>
+      <summary>Id of the preset last applied from the preferences</summary>
+      <description>Only used by the preferences window, to show which preset a set of settings came from once it has been edited. Empty means the settings were never set from a preset.</description>
+    </key>
+
     <!-- ==================== States ==================== -->
     <key name="indicate-above" type="b">
       <default>true</default>
@@ -307,11 +314,81 @@
       </choices>
       <default>'menu'</default>
       <summary>What clicking the badge does</summary>
-      <description>"menu" opens a small popup with both toggles, "unpin" clears both states, the toggle actions flip one state, "none" makes the badge click-through.</description>
+      <description>"menu" opens a small popup with both toggles, "unpin" clears both states, the toggle actions flip one state, "none" does nothing.</description>
+    </key>
+    <key name="badge-click-through" type="b">
+      <default>false</default>
+      <summary>Let clicks pass through the badge to the window beneath it</summary>
+      <description>The badge stops reacting to the pointer entirely; the click action is not triggered. Hover fade and dodging still work because they follow the pointer position rather than the badge's own events.</description>
     </key>
     <key name="badge-hover-grow" type="b">
       <default>true</default>
       <summary>Enlarge the badge slightly while hovered</summary>
+    </key>
+    <key name="badge-hover-fade" type="b">
+      <default>false</default>
+      <summary>Fade the badge while the pointer is over it</summary>
+      <description>Lets you read what the badge is covering without moving the window. The badge returns to its normal opacity as soon as the pointer leaves.</description>
+    </key>
+    <key name="badge-hover-fade-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>25</default>
+      <summary>Badge opacity in percent while faded by the pointer</summary>
+    </key>
+    <key name="badge-dodge" type="b">
+      <default>false</default>
+      <summary>Move the badge out of the way when the pointer comes close</summary>
+      <description>The badge stays near its corner but slides away from the pointer once it is closer than badge-dodge-distance, and sneaks back after the pointer has left.</description>
+    </key>
+    <key name="badge-dodge-distance" type="i">
+      <range min="16" max="400"/>
+      <default>72</default>
+      <summary>How close the pointer may come before the badge dodges, in pixels</summary>
+      <description>Measured from the pointer to the badge center. The badge keeps at least this distance while dodging.</description>
+    </key>
+    <key name="badge-dodge-bounds" type="s">
+      <choices>
+        <choice value="window"/>
+        <choice value="edge"/>
+        <choice value="free"/>
+      </choices>
+      <default>'edge'</default>
+      <summary>How far a dodging badge may leave the window</summary>
+      <description>"window" keeps it inside the frame, "edge" lets it hang halfway over the edge, "free" lets it move up to the dodge distance outside. It always stays on the monitor.</description>
+    </key>
+    <key name="badge-dodge-duration" type="i">
+      <range min="50" max="1500"/>
+      <default>300</default>
+      <summary>Duration in milliseconds of each dodge movement</summary>
+    </key>
+    <key name="badge-dodge-easing" type="s">
+      <choices>
+        <choice value="linear"/>
+        <choice value="ease-in-quad"/>
+        <choice value="ease-out-quad"/>
+        <choice value="ease-in-out-quad"/>
+        <choice value="ease-out-cubic"/>
+        <choice value="ease-in-out-cubic"/>
+        <choice value="ease-out-quart"/>
+        <choice value="ease-out-quint"/>
+        <choice value="ease-out-expo"/>
+        <choice value="ease-in-out-sine"/>
+        <choice value="ease-out-circ"/>
+        <choice value="ease-out-back"/>
+        <choice value="ease-out-elastic"/>
+        <choice value="ease-out-bounce"/>
+      </choices>
+      <default>'ease-out-back'</default>
+      <summary>Easing curve for dodge movements</summary>
+    </key>
+    <key name="badge-dodge-return-delay" type="i">
+      <range min="0" max="3000"/>
+      <default>350</default>
+      <summary>Milliseconds the badge waits after the pointer has left before returning to its corner</summary>
+    </key>
+    <key name="badge-dodge-tilt" type="b">
+      <default>true</default>
+      <summary>Tilt the badge in the direction it dodges</summary>
     </key>
 
     <!-- ==================== Top bar indicator ==================== -->

@@ -1,3 +1,4 @@
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
@@ -13,6 +14,7 @@ export default class Helper extends Extension {
         this._impl = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
         this._impl.export(Gio.DBus.session, '/local/AoiTestHelper');
         globalThis.__Main = Main;
+        globalThis.__Clutter = Clutter;
     }
     disable() { this._impl.unexport(); this._impl = null; }
     async ScreenshotAsync([path], invocation) {
@@ -29,6 +31,7 @@ export default class Helper extends Extension {
     Eval(code) {
         try {
             const Main = globalThis.__Main;
+            const Clutter = globalThis.__Clutter; // eslint-disable-line no-unused-vars
             const r = eval(code);
             return r === undefined ? 'undefined' : (typeof r === 'object' ? JSON.stringify(r) : String(r));
         } catch (e) { return `ERR ${e}\n${e.stack ?? ''}`; }

@@ -75,6 +75,22 @@ async function run() {
         shot(`prefs-${page.title.toLowerCase().replace(/[^a-z]+/g, '-')}`);
     }
 
+    // Preset popover in the header bar
+    const presetButton = find(dialog, w => w instanceof Gtk.MenuButton &&
+        w.tooltip_text === 'Choose a preset');
+    print(`preset button: ${presetButton ? `"${presetButton.label}"` : 'none'}`);
+    if (presetButton) {
+        presetButton.popover.popup();
+        await sleep(800);
+        shot('prefs-presets');
+        const list = find(presetButton.popover, w => w instanceof Gtk.ListBox);
+        const names = list ? [...walk(list)].filter(w => w instanceof Gtk.ListBoxRow)
+            .map(r => r._preset.name) : [];
+        print(`presets: ${names.join(', ')}`);
+        presetButton.popover.popdown();
+        await sleep(300);
+    }
+
     // General page: open the icon picker and search it
     const generalPage = pages.find(p => p.title === 'General');
     dialog.set_visible_page(generalPage);

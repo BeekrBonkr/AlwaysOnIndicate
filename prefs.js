@@ -12,6 +12,9 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 import {
     ShortcutRegistry, customShortcuts, extensionShortcuts, gnomeShortcuts, makeShortcutRow,
 } from './prefsShortcuts.js';
+import {
+    PRESETS, PRESET_KEEPS, applyPreset, presetStatus, restore, snapshot,
+} from './presets.js';
 
 const KEYBINDINGS = [
     ['kb-toggle-above', 'Toggle always on top', 'For the focused window'],
@@ -62,6 +65,17 @@ const EASINGS = [
 const DBUS_NAME = 'org.gnome.Shell';
 const DBUS_PATH = '/org/gnome/Shell/Extensions/AlwaysOnIndicate';
 const DBUS_IFACE = 'org.gnome.Shell.Extensions.AlwaysOnIndicate';
+
+// [title, subtitle, url] shown on the About page.
+const LINKS = [
+    ['Always On Indicate on GitHub', 'Source code, issues and releases',
+        'https://github.com/BeekrBonkr/AlwaysOnIndicate'],
+    ['Report an issue', 'Bugs, feature requests and questions',
+        'https://github.com/BeekrBonkr/AlwaysOnIndicate/issues'],
+    ['Topbar Tweaks', 'My other extension: a full top bar on every monitor',
+        'https://github.com/BeekrBonkr/TopbarTweaks'],
+    ['BeekrBonkr on GitHub', 'More of my projects', 'https://github.com/BeekrBonkr'],
+];
 
 // ---------------------------------------------------------------------------
 // Widget helpers
@@ -339,6 +353,23 @@ function showIconPicker(parent, settings, key, title) {
     }
 }
 
+// A row that opens a web page in the default browser when activated.
+function linkRow(window, title, subtitle, uri, icon = 'adw-external-link-symbolic') {
+    const row = new Adw.ActionRow({title, subtitle: subtitle ?? '', activatable: true});
+    row.add_suffix(new Gtk.Image({icon_name: icon, valign: Gtk.Align.CENTER}));
+    row.connect('activated', () => {
+        new Gtk.UriLauncher({uri}).launch(window.get_root?.() ?? window, null, (launcher, result) => {
+            try {
+                launcher.launch_finish(result);
+            } catch (e) {
+                if (!e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    console.warn(`Could not open ${uri}: ${e.message}`);
+            }
+        });
+    });
+    return row;
+}
+
 function group(page, title, description) {
     const g = new Adw.PreferencesGroup({title, description: description ?? ''});
     page.add(g);
@@ -364,6 +395,54 @@ function isOn(key) {
 }
 
 // ---------------------------------------------------------------------------
+// Preset button
+//
+// Adw.PreferencesWindow has no public API for adding a header bar widget, so
+// the header bar is looked up in the widget tree. If that ever stops working
+// the button lands in a group at the top of the General page instead.
+
+function findHeaderBar(widget) {
+    if (widget instanceof Adw.HeaderBar)
+        return widget;
+    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+        const found = findHeaderBar(child);
+        if (found)
+            return found;
+    }
+    return null;
+}
+
+function presetRow(preset) {
+    const box = new Gtk.Box({
+        spacing: 12,
+        margin_top: 8, margin_bottom: 8, margin_start: 8, margin_end: 8,
+    });
+    box.append(new Gtk.Image({icon_name: preset.icon, pixel_size: 24}));
+
+    const text = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, hexpand: true});
+    const name = new Gtk.Label({label: preset.name, xalign: 0});
+    name.add_css_class('heading');
+    const summary = new Gtk.Label({label: preset.summary, xalign: 0});
+    summary.add_css_class('caption');
+    summary.add_css_class('dim-label');
+    text.append(name);
+    text.append(summary);
+    box.append(text);
+
+    const check = new Gtk.Image({
+        icon_name: 'object-select-symbolic',
+        valign: Gtk.Align.CENTER,
+        visible: false,
+    });
+    box.append(check);
+
+    const row = new Gtk.ListBoxRow({child: box, tooltip_text: preset.description});
+    row._preset = preset;
+    row._check = check;
+    return row;
+}
+
+// ---------------------------------------------------------------------------
 
 export default class AlwaysOnIndicatePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -372,22 +451,133 @@ export default class AlwaysOnIndicatePreferences extends ExtensionPreferences {
         window.set_default_size(760, 720);
         window.search_enabled = true;
 
-        window.add(this._buildGeneralPage(settings));
+        // The preset button belongs in the header bar; the General page takes
+        // it only if the header bar could not be found.
+        const presetButton = this._buildPresetButton(window, settings);
+        const header = findHeaderBar(window);
+        if (header)
+            header.pack_start(presetButton);
+
+        window.add(this._buildGeneralPage(settings, header ? null : presetButton));
         window.add(this._buildOutlinePage(settings));
         window.add(this._buildBadgePage(settings));
         window.add(this._buildPanelDockPage(settings));
         window.add(this._buildShortcutsPage(settings, window));
         window.add(this._buildWindowsPage(settings, window));
         window.add(this._buildFeedbackPage(settings));
+        window.add(this._buildAboutPage(window));
+    }
+
+    // ----------------------------------------------------------------- Presets
+
+    // A menu button showing the look currently in effect, with a popover to
+    // switch to another one. Applying is undoable from the toast it raises.
+    _buildPresetButton(window, settings) {
+        const list = new Gtk.ListBox({selection_mode: Gtk.SelectionMode.NONE});
+        list.add_css_class('boxed-list');
+        const rows = PRESETS.map(preset => {
+            const row = presetRow(preset);
+            list.append(row);
+            return row;
+        });
+
+        const content = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 12,
+            width_request: 380,
+            margin_top: 12, margin_bottom: 12, margin_start: 12, margin_end: 12,
+        });
+        const blurb = new Gtk.Label({
+            label: 'Pick a starting point, then adjust anything you like. ' + PRESET_KEEPS,
+            wrap: true, xalign: 0, max_width_chars: 44,
+        });
+        blurb.add_css_class('caption');
+        blurb.add_css_class('dim-label');
+        content.append(blurb);
+
+        const scroller = new Gtk.ScrolledWindow({
+            propagate_natural_height: true,
+            max_content_height: 460,
+            hscrollbar_policy: Gtk.PolicyType.NEVER,
+            child: list,
+        });
+        content.append(scroller);
+
+        const popover = new Gtk.Popover({child: content});
+        const button = new Gtk.MenuButton({
+            popover,
+            always_show_arrow: true,
+            tooltip_text: 'Choose a preset',
+        });
+
+        const refresh = () => {
+            const {preset, modified} = presetStatus(settings);
+            button.label = preset
+                ? (modified ? `${preset.name} (modified)` : preset.name)
+                : 'Custom';
+            for (const row of rows)
+                row._check.visible = !modified && row._preset === preset;
+        };
+
+        // Any settings change can make the active preset stop matching.
+        // Comparing every key against every preset is cheap but not free, so
+        // bursts (dragging a spin button) collapse into one check.
+        let pendingId = 0;
+        settings.connect('changed', () => {
+            if (pendingId)
+                return;
+            pendingId = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 100, () => {
+                pendingId = 0;
+                refresh();
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+        button.connect('destroy', () => {
+            if (pendingId)
+                GLib.source_remove(pendingId);
+            pendingId = 0;
+        });
+
+        list.connect('row-activated', (_list, row) => {
+            popover.popdown();
+            const before = snapshot(settings);
+            applyPreset(settings, row._preset);
+            refresh();
+            const toast = new Adw.Toast({
+                title: `${row._preset.name} applied`,
+                button_label: 'Undo',
+            });
+            toast.connect('button-clicked', () => {
+                restore(settings, before);
+                settings.set_string('active-preset', '');
+                refresh();
+            });
+            window.add_toast(toast);
+        });
+
+        refresh();
+        return button;
     }
 
     // ----------------------------------------------------------------- General
 
-    _buildGeneralPage(settings) {
+    _buildGeneralPage(settings, presetButton) {
         const page = new Adw.PreferencesPage({
             title: 'General',
             icon_name: 'view-pin-symbolic',
         });
+
+        if (presetButton) {
+            const presets = group(page, 'Preset', PRESET_KEEPS);
+            const row = new Adw.ActionRow({
+                title: 'Preset',
+                subtitle: 'Start from a ready-made look',
+                activatable_widget: presetButton,
+            });
+            presetButton.valign = Gtk.Align.CENTER;
+            row.add_suffix(presetButton);
+            presets.add(row);
+        }
 
         const states = group(page, 'What to Indicate',
             'Windows can be "always on top" (they stay above other windows) and ' +
@@ -588,18 +778,56 @@ export default class AlwaysOnIndicatePreferences extends ExtensionPreferences {
         labelRows.forEach(r => labels.add(r));
         rows.push(...labelRows);
 
-        const behavior = group(page, 'Behavior');
+        const behavior = group(page, 'Pointer Behavior',
+            'How the badge reacts to the pointer. A click-through badge never takes ' +
+            'clicks away from the window beneath it; fading and dodging work either way.');
         const click = comboRow(settings, 'badge-click-action', 'Click', '', [
             ['menu', 'Open a menu with both toggles'],
             ['unpin', 'Unpin the window'],
             ['toggle-above', 'Toggle always on top'],
             ['toggle-sticky', 'Toggle always on visible workspace'],
-            ['none', 'Nothing (click-through)'],
+            ['none', 'Nothing'],
         ]);
-        const grow = switchRow(settings, 'badge-hover-grow', 'Grow on hover');
-        behavior.add(click);
-        behavior.add(grow);
-        rows.push(click, grow);
+        const clickThrough = switchRow(settings, 'badge-click-through', 'Click through',
+            'Clicks on the badge reach the window; the click action is not triggered');
+        const grow = switchRow(settings, 'badge-hover-grow', 'Grow on hover',
+            'Only while the badge takes clicks');
+        const fade = switchRow(settings, 'badge-hover-fade', 'Fade on hover',
+            'Turn the badge translucent while the pointer is over it');
+        const fadeOpacity = spinRow(settings, 'badge-hover-fade-opacity', 'Faded opacity',
+            'Percent of the normal badge opacity', 0, 100, 5);
+        [click, clickThrough, grow, fade, fadeOpacity].forEach(r => behavior.add(r));
+        bindSensitive(settings, 'badge-click-through', [click],
+            s => !s.get_boolean('badge-click-through'));
+        bindSensitive(settings, 'badge-hover-fade', [fadeOpacity], isOn('badge-hover-fade'));
+        rows.push(click, clickThrough, grow, fade, fadeOpacity);
+
+        const dodge = group(page, 'Dodge the Pointer',
+            'The badge playfully slips out of the way when the pointer comes close, ' +
+            'keeps its distance while you chase it, and sneaks back to its spot once ' +
+            'the pointer has left. A dodging badge is hard to click on purpose.');
+        const dodgeOn = switchRow(settings, 'badge-dodge', 'Dodge the pointer');
+        const dodgeRows = [
+            spinRow(settings, 'badge-dodge-distance', 'Distance',
+                'Pixels between the pointer and the badge center that trigger a dodge', 16, 400, 4),
+            comboRow(settings, 'badge-dodge-bounds', 'May move',
+                'The badge always stays on the monitor', [
+                    ['window', 'Inside the window only'],
+                    ['edge', 'Halfway over the window edge'],
+                    ['free', 'Up to the dodge distance outside the window'],
+                ]),
+            spinRow(settings, 'badge-dodge-duration', 'Movement duration', 'Milliseconds', 50, 1500, 10),
+            comboRow(settings, 'badge-dodge-easing', 'Movement easing',
+                '"Overshoot", "Elastic" and "Bounce" give it the most character', EASINGS),
+            spinRow(settings, 'badge-dodge-return-delay', 'Return delay',
+                'Milliseconds the badge waits before heading back', 0, 3000, 50),
+            switchRow(settings, 'badge-dodge-tilt', 'Lean into the dodge',
+                'Tilt the badge in the direction it moves'),
+        ];
+        dodge.add(dodgeOn);
+        dodgeRows.forEach(r => dodge.add(r));
+        bindSensitive(settings, 'badge-dodge', dodgeRows, isOn('badge-dodge'));
+        rows.push(dodgeOn, ...dodgeRows);
 
         bindSensitive(settings, 'badge-enabled', rows, isOn('badge-enabled'));
         return page;
@@ -832,6 +1060,33 @@ export default class AlwaysOnIndicatePreferences extends ExtensionPreferences {
             'Used when indicators appear and disappear and when window opacity changes.');
         animation.add(spinRow(settings, 'animation-duration', 'Duration', 'Milliseconds; 0 disables animations', 0, 2000, 25));
         animation.add(comboRow(settings, 'animation-interpolation', 'Interpolation', 'Easing curve', EASINGS));
+
+        return page;
+    }
+
+    // ----------------------------------------------------------------- About
+
+    _buildAboutPage(window) {
+        const page = new Adw.PreferencesPage({
+            title: 'About',
+            icon_name: 'help-about-symbolic',
+        });
+
+        const info = group(page, this.metadata.name, this.metadata.description);
+        const version = this.metadata['version-name'] ?? this.metadata.version ?? 'development';
+        info.add(new Adw.ActionRow({title: 'Version', subtitle: String(version)}));
+        info.add(new Adw.ActionRow({title: 'License', subtitle: 'GPL-3.0-or-later'}));
+
+        const links = group(page, 'Links');
+        for (const [title, subtitle, uri] of LINKS)
+            links.add(linkRow(window, title, subtitle, uri));
+
+        const support = group(page, 'Support',
+            'This extension is free and open source, built in my spare time. If it ' +
+            'saved you some time or you would like to see it keep getting updates, ' +
+            'you can buy me a coffee.');
+        support.add(linkRow(window, 'Buy me a coffee on Ko-fi', 'ko-fi.com/bkrbnkr',
+            'https://ko-fi.com/bkrbnkr', 'emblem-favorite-symbolic'));
 
         return page;
     }
