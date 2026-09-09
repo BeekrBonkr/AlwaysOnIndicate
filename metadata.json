@@ -1,6 +1,8 @@
 {
     "uuid": "always-on-indicate@beekrbonkr.github.io",
     "name": "Always On Indicate",
+    "version": 1,
+    "version-name": "1.0.0",
     "description": "See and manage windows that are always on top or always on the visible workspace. Marks them with a window outline, a corner badge, a top bar indicator and a dock badge, adds configurable shortcuts (and finds the ones you already have), auto-pins apps by rule, and adapts to server-side, client-side and custom window decorations.",
     "shell-version": ["48", "49", "50"],
     "url": "https://github.com/BeekrBonkr/AlwaysOnIndicate",
