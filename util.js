@@ -7,6 +7,17 @@ import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 
+import * as Config from 'resource:///org/gnome/shell/misc/config.js';
+import {PopupAnimation} from 'resource:///org/gnome/shell/ui/boxpointer.js';
+
+const SHELL_MAJOR = parseInt(Config.PACKAGE_VERSION);
+
+// GNOME 51 changed PopupMenu.open() from an animation flag to a parameters
+// object; open with the full animation on either.
+export function openMenu(menu) {
+    menu.open(SHELL_MAJOR >= 51 ? {animate: true} : PopupAnimation.FULL);
+}
+
 export const ANIMATION_MODES = {
     'linear': Clutter.AnimationMode.LINEAR,
     'ease-in-quad': Clutter.AnimationMode.EASE_IN_QUAD,

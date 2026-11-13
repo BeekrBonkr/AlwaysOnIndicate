@@ -96,12 +96,15 @@ if [ "$SCENARIO" = dodge ]; then
         ev "(() => { const ext = Main.extensionManager.lookup('$UUID').stateObj; const i = [...ext._overlays._indicators.values()].find(i => (i.window.get_wm_class() ?? '').toLowerCase().includes('calc')); const b = i._badge; const [sx, sy] = i._container.get_transformed_position(); return [Math.round(sx + b.x + b.width / 2), Math.round(sy + b.y + b.height / 2), Math.round(b.translation_x), Math.round(b.translation_y), Math.round(b.rotation_angle_z), b.opacity, b.reactive, ext._overlays.pointerTracking]; })()"
     }
     pointer() {
-        ev "(() => { const seat = Clutter.get_default_backend().get_default_seat(); globalThis.__vp ??= seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE); globalThis.__vp.notify_absolute_motion(global.get_current_time() * 1000, $1, $2); return global.get_pointer().slice(0, 2); })()"
+        ev "(() => { const seat = global.stage.context.get_backend().get_default_seat(); globalThis.__vp ??= seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE); globalThis.__vp.notify_absolute_motion(global.get_current_time() * 1000, $1, $2); return global.get_pointer().slice(0, 2); })()"
     }
     echo "--- dodge: rest"; REST=$(badgeinfo); echo "$REST"
     BX=$(echo "$REST" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0])')
     BY=$(echo "$REST" | python3 -c 'import sys,json; print(json.load(sys.stdin)[1])')
     echo "pointer far: $(pointer 100 850)"; sleep 0.5
+    # The virtual pointer starts in the hot corner; leaving it can open the
+    # overview, which hides the indicators.
+    ev "Main.overview.hide(); 1" >/dev/null; sleep 1.5
     echo "far: $(badgeinfo)"
     echo "pointer near (40px left of badge): $(pointer $((BX - 40)) $((BY + 10)))"; sleep 0.8
     shot 10-dodge-near
@@ -155,7 +158,7 @@ echo "--- dock badges"; ev "(() => { const ext = Main.extensionManager.lookup('$
 ev "Main.overview.hide(); 1" >/dev/null
 sleep 1.5
 # maximize gedit → radius should drop to 0
-ev "(() => { const w = global.get_window_actors().map(a => a.meta_window).find(w => (w.get_wm_class() ?? '').toLowerCase().includes('gedit')); w.maximize(3); return 1; })()" >/dev/null
+ev "(() => { const w = global.get_window_actors().map(a => a.meta_window).find(w => (w.get_wm_class() ?? '').toLowerCase().includes('gedit')); w.maximize(); return 1; })()" >/dev/null
 sleep 1.5
 shot 07-maximized
 echo "--- overlays maximized"; overlays

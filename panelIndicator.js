@@ -13,7 +13,13 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-import {colorFor, cssColor, iconFor, indicatedState, rawState, stateLabel} from './util.js';
+import {colorFor, cssColor, iconFor, indicatedState, openMenu, rawState, stateLabel} from './util.js';
+
+// PanelMenu.Button implements vfunc_event only up to GNOME 48 (later
+// versions toggle the menu with a click gesture); chaining up when no parent
+// class implements it throws.
+const PARENT_HANDLES_EVENTS =
+    Object.hasOwn(PanelMenu.Button.prototype, 'vfunc_event');
 
 export const PANEL_ROLE = 'always-on-indicate';
 
@@ -156,7 +162,8 @@ class PanelIndicator extends PanelMenu.Button {
                 return Clutter.EVENT_PROPAGATE;
             return Clutter.EVENT_STOP;
         }
-        return super.vfunc_event(event);
+        return PARENT_HANDLES_EVENTS
+            ? super.vfunc_event(event) : Clutter.EVENT_PROPAGATE;
     }
 
     _middleClick() {
@@ -276,7 +283,7 @@ export class PanelIndicatorManager {
 
     openMenu() {
         if (this._indicator?.visible)
-            this._indicator.menu.open(true);
+            openMenu(this._indicator.menu);
         else
             this._indicator?.menu.toggle();
     }

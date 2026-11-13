@@ -18,8 +18,10 @@
 // rules resolved in decorations.js.
 //
 // Pointer-driven badge behaviors (hover fade, dodging) do not rely on the
-// badge receiving events — it may be click-through — but on motion events
-// captured on the stage, coalesced to one update per frame. Dodging keeps the
+// badge receiving events — it may be click-through — but on the cursor
+// tracker's position updates, coalesced to one update per frame (stage
+// events are no use here: motion over a client window goes straight to the
+// client and never reaches the stage). Dodging keeps the
 // badge's rest position (x/y) untouched and animates a translation on top of
 // it, so re-layouts and dodges never fight over the same property.
 
@@ -32,7 +34,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {resolveGeometry} from './decorations.js';
-import {ANIMATION_MODES, animationMode, clamp, colorFor, cssColor, iconFor, indicatedState, parseRules} from './util.js';
+import {ANIMATION_MODES, animationMode, clamp, colorFor, cssColor, iconFor, indicatedState, openMenu, parseRules} from './util.js';
 
 // Settings keys that only need a restyle / re-layout of existing overlays.
 const RESTYLE_PREFIXES = ['outline-', 'badge-', 'color-', 'icon-', 'deco-', 'radius-when-'];
@@ -978,8 +980,8 @@ export class OverlayManager {
              this.settings.get_boolean('badge-dodge'));
         if (needed && !this.pointerTracking) {
             this.pointerTracking = true;
-            global.stage.connectObject('captured-event',
-                (_stage, event) => this._onCapturedEvent(event), this);
+            global.backend.get_cursor_tracker().connectObject(
+                'position-invalidated', () => this._onPointerMoved(), this);
         } else if (!needed) {
             this._stopPointerTracking();
         }
@@ -989,7 +991,7 @@ export class OverlayManager {
         if (!this.pointerTracking)
             return;
         this.pointerTracking = false;
-        global.stage.disconnectObject(this);
+        global.backend.get_cursor_tracker().disconnectObject(this);
         if (this._pointerFlushId) {
             GLib.source_remove(this._pointerFlushId);
             this._pointerFlushId = 0;
@@ -999,12 +1001,8 @@ export class OverlayManager {
             indicator.resetBadgeEffects();
     }
 
-    _onCapturedEvent(event) {
-        const type = event.type();
-        if (type !== Clutter.EventType.MOTION && type !== Clutter.EventType.ENTER &&
-            type !== Clutter.EventType.LEAVE)
-            return Clutter.EVENT_PROPAGATE;
-        this._pendingPointer = event.get_coords();
+    _onPointerMoved() {
+        this._pendingPointer = true;
         if (!this._pointerFlushId) {
             this._pointerFlushId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, POINTER_FLUSH_MS, () => {
                 this._pointerFlushId = 0;
@@ -1012,15 +1010,13 @@ export class OverlayManager {
                 return GLib.SOURCE_REMOVE;
             });
         }
-        return Clutter.EVENT_PROPAGATE;
     }
 
     _dispatchPointer() {
-        const pointer = this._pendingPointer;
-        this._pendingPointer = null;
-        if (!pointer)
+        if (!this._pendingPointer)
             return;
-        const [x, y] = pointer;
+        this._pendingPointer = null;
+        const [x, y] = global.get_pointer();
         for (const indicator of this._indicators.values())
             indicator.pointerMoved(x, y);
     }
@@ -1085,7 +1081,7 @@ export class OverlayManager {
                 });
             }
         });
-        menu.open(true);
+        openMenu(menu);
     }
 
     // For debugging: which profile a window got.

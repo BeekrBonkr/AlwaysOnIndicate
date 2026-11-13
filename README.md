@@ -94,7 +94,7 @@ GitHub profile and Ko-fi.
 
 ## Requirements
 
-GNOME Shell 48-50 (developed and tested on GNOME 50).
+GNOME Shell 48-51 (developed on GNOME 50, tested on GNOME 50 and 51).
 
 ## Install
 
